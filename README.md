@@ -51,37 +51,27 @@ Then visit `http://localhost:8000`. Python is only an optional static-file serve
 4. **Unit 4 — Parallel Architecture:** four independent asynchronous sensor tasks are compared with a sequential run. This illustrates concurrency, not guaranteed CPU-parallel work.
 5. **Unit 5 — Parallel System:** sensor readings, ALU decisions, signal control, water status, and emergency handling cooperate through shared state and update the same interface.
 
-## Git setup on Windows
+## GitHub repository and authentication
 
-The `git` command must be installed before it can be used in PowerShell. Download **Git for Windows** from <https://git-scm.com/download/win>, install it using the default options, then close and reopen PowerShell/VS Code. Check the installation:
+The private GitHub repository is [Atul-217/smart-traffic-management](https://github.com/Atul-217/smart-traffic-management). Its `main`, `dev`, and `uat` branches are pushed and track their matching remote branches.
+
+Git for Windows is installed. If PowerShell reports that `git` is not recognized, close and reopen PowerShell or VS Code so Windows loads the updated user `PATH`, then verify:
 
 ```powershell
 git --version
 ```
 
-From this project directory, initialize `main` as the shared starting point, then create `dev` and `uat`:
+Git Credential Manager is configured to authenticate with GitHub. Run Git commands in a newly opened PowerShell terminal; complete the GitHub browser authorization when prompted. **Do not enter your GitHub account password as an HTTPS Git password or share credentials in chat.** If a credential prompt explicitly requests a password, use a GitHub personal access token in that local prompt, not the account password.
+
+The repository remote is already configured:
 
 ```powershell
 cd D:\Self\Projects\smart-traffic-management
-git init -b main
-git add index.html style.css script.js README.md
-git commit -m "Build smart traffic simulation"
-git switch -c dev
-git switch -c uat
+git remote -v
+git branch -vv
 ```
 
-Create a **private** empty repository on GitHub using your own account, then use its repository URL below:
-
-```powershell
-git remote add origin https://github.com/YOUR-USERNAME/smart-traffic-management.git
-git push -u origin main
-git push -u origin dev
-git push -u origin uat
-```
-
-GitHub will prompt for browser authentication or a configured credential manager. Do not paste passwords or access tokens into source files or chat.
-
-For subsequent work, commit to `dev`, merge/push `dev` into `uat` for testing, then merge/push `uat` into `main` for production:
+For subsequent work, commit to `dev`, merge/push `dev` into `uat` for testing, then merge/push `uat` into `main` for production. The initial project commit is already present on all three branches:
 
 ```powershell
 git switch dev
