@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071421">
+  <meta name="description" content="Educational, browser-based smart traffic management simulation.">
+  <title>Smart Traffic Control | Simulation Lab</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#overview" aria-label="Smart Traffic Control home">
+      <span class="brand-mark">ST</span>
+      <span><small>SMART CITY / SIMULATION</small><strong>Traffic Control</strong></span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#overview">Overview</a><a href="#intersection">Junction</a><a href="#density">Traffic</a>
+      <a href="#control">Control</a><a href="#water">Water safety</a><a href="#emergency">Emergency</a>
+      <a href="#capp">CAPP lab</a>
+    </nav>
+    <span class="simulation-badge"><i></i> SIMULATION ONLY</span>
+  </header>
+
+  <main>
+    <section class="hero" id="overview">
+      <div>
+        <p class="kicker">COMPUTER ARCHITECTURE &amp; PARALLEL PROCESSING</p>
+        <h1>Smarter signals.<br><em>Safer streets.</em></h1>
+        <p class="hero-copy">An interactive four-way junction simulator that adapts signal timing to traffic demand, simulated water levels, and emergency requests.</p>
+        <a class="button primary" href="#intersection">Open live junction <span aria-hidden="true">↘</span></a>
+      </div>
+      <div class="hero-status">
+        <span class="pulse"></span>
+        <div><small>SYSTEM STATUS</small><strong id="systemStatus">Ready</strong></div>
+        <span class="divider"></span>
+        <div><small>CONTROL MODE</small><strong id="modeLabel">AUTO</strong></div>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Dashboard summary">
+      <article class="stat-card"><span>SIMULATED VEHICLES</span><strong id="totalVehicles">0</strong><small>across four approaches</small></article>
+      <article class="stat-card"><span>ACTIVE GREEN</span><strong id="activeRoad">—</strong><small id="signalStatus">Starting</small></article>
+      <article class="stat-card"><span>PHASE TIMER</span><strong id="countdown">—</strong><small>seconds remaining</small></article>
+      <article class="stat-card"><span>ACTIVE ALERTS</span><strong id="alertCount">0</strong><small id="safeCount">4 roads safe</small></article>
+    </section>
+
+    <section class="section" id="intersection">
+      <div class="section-heading">
+        <div><p class="kicker">01 / LIVE SIMULATION</p><h2>Four-way intersection</h2></div>
+        <span class="tag">All readings are simulated</span>
+      </div>
+      <div class="intersection-layout">
+        <div class="junction-wrap">
+          <div class="junction" aria-label="Four-way traffic junction">
+            <div class="road road-ns"></div><div class="road road-ew"></div>
+            <div class="lane-mark mark-n"></div><div class="lane-mark mark-s"></div>
+            <div class="lane-mark mark-e"></div><div class="lane-mark mark-w"></div>
+            <div class="junction-center"><span>SMART<br>JUNCTION</span></div>
+            <div class="signal signal-north" data-signal="north"><b>N</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-south" data-signal="south"><b>S</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-east" data-signal="east"><b>E</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-west" data-signal="west"><b>W</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+          </div>
+        </div>
+        <aside class="junction-info">
+          <p class="kicker">SIGNAL DECISION</p>
+          <div class="decision-road" id="decisionRoad">North</div>
+          <span class="phase-pill" id="phasePill">GREEN PHASE</span>
+          <p id="decisionReason">Choosing a safe road based on simulated demand.</p>
+          <div class="rule"><span class="rule-dot"></span><span>Only one approach can receive green at a time. Yellow and all-red clearance protect every phase change.</span></div>
+          <div class="mini-readings"><span>Next selected</span><strong id="nextRoad">—</strong></div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="density">
+      <div class="section-heading">
+        <div><p class="kicker">02 / INPUT SENSORS</p><h2>Traffic density monitor</h2></div>
+        <button class="button secondary" id="randomTraffic">Generate random traffic</button>
+      </div>
+      <p class="section-note">Move a slider or enter a count from 0–100. These are generated inputs, not real sensor data.</p>
+      <div class="road-grid" id="roadInputs"></div>
+    </section>
+
+    <section class="section" id="control">
+      <div class="section-heading"><div><p class="kicker">03 / CONTROL UNIT</p><h2>Signal control center</h2></div><span class="tag" id="controlModeTag">Automatic scheduling</span></div>
+      <div class="control-grid">
+        <article class="card control-card">
+          <h3>Phase controls</h3>
+          <div class="button-row">
+            <button class="button primary" id="startButton">Start</button>
+            <button class="button secondary" id="pauseButton">Pause</button>
+            <button class="button secondary" id="resumeButton">Resume</button>
+            <button class="button outline" id="resetButton">Reset</button>
+          </div>
+          <div class="field-row"><label for="modeSelect">Control mode</label><select id="modeSelect"><option value="auto">Automatic</option><option value="manual">Manual</option></select></div>
+          <div class="field-row"><label for="manualRoad">Manual road request</label><select id="manualRoad"><option value="north">North</option><option value="south">South</option><option value="east">East</option><option value="west">West</option></select></div>
+          <button class="button secondary full" id="requestManual">Request selected road (safe transition)</button>
+        </article>
+        <article class="card">
+          <h3>Timing &amp; congestion model</h3>
+          <p class="section-note">Automatic green duration scales with the selected road’s vehicle count and stays within these limits.</p>
+          <div class="settings-grid">
+            <div class="field-row"><label for="minGreen">Minimum green (s)</label><input id="minGreen" type="number" min="5" max="60" value="8"></div>
+            <div class="field-row"><label for="maxGreen">Maximum green (s)</label><input id="maxGreen" type="number" min="6" max="90" value="28"></div>
+          </div>
+          <button class="button outline" id="saveTiming">Apply timing settings</button>
+          <div class="congestion">
+            <div><span>Illustrative congestion before</span><strong id="congestionBefore">0%</strong></div>
+            <div><span>Illustrative after scheduling</span><strong id="congestionAfter">0%</strong></div>
+          </div>
+          <small class="disclaimer">Illustrative index only; not a measured real-world performance gain.</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="alu">
+      <div class="section-heading"><div><p class="kicker">04 / ARITHMETIC LOGIC UNIT</p><h2>ALU calculation bench</h2></div></div>
+      <div class="control-grid">
+        <article class="card">
+          <h3>Operands &amp; operation</h3>
+          <div class="settings-grid alu-inputs">
+            <div class="field-row"><label for="operandA">Operand A</label><input id="operandA" type="number" value="24" min="0" max="1000"></div>
+            <div class="field-row"><label for="operandB">Operand B</label><input id="operandB" type="number" value="12" min="0" max="1000"></div>
+          </div>
+          <div class="field-row"><label for="aluOperation">Operation</label><select id="aluOperation"><option value="add">Addition (A + B)</option><option value="subtract">Subtraction (A − B)</option><option value="compare">Comparison (A vs B)</option><option value="duration">Green duration for A vehicles</option><option value="ambulance">Ambulance logic (A = request)</option><option value="water">Water alert logic (A = cm)</option></select></div>
+          <button class="button primary" id="runAlu">Run ALU</button>
+          <div class="alu-result"><span id="aluExpression">Output</span><strong id="aluResult" aria-live="polite">—</strong></div>
+        </article>
+        <article class="card">
+          <h3>Traffic decision table</h3>
+          <div class="table-scroll"><table><thead><tr><th>Road</th><th>Vehicles</th><th>Density</th><th>Water</th><th>Decision</th></tr></thead><tbody id="decisionTable"></tbody></table></div>
+          <p class="section-note">Comparison and timing calculations are performed by JavaScript functions.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="parallel">
+      <div class="section-heading"><div><p class="kicker">05 / PARALLEL ARCHITECTURE</p><h2>Parallel processing lab</h2></div><button class="button secondary" id="runParallel">Run monitoring cycle</button></div>
+      <div class="control-grid">
+        <article class="card">
+          <h3>Four simulated sensor tasks</h3>
+          <div class="sensor-grid" id="sensorGrid"></div>
+          <div class="mini-readings"><span>Road readings processed</span><strong id="operationCount">0</strong></div>
+        </article>
+        <article class="card">
+          <h3>Sequential vs. concurrent demo</h3>
+          <div class="metric-line"><span>Sequential illustrative delay</span><strong id="sequentialTime">—</strong></div>
+          <div class="metric-line"><span>Concurrent illustrative delay</span><strong id="parallelTime">—</strong></div>
+          <div class="metric-line"><span>Last cycle</span><strong id="cycleStatus">Ready</strong></div>
+          <p class="disclaimer">JavaScript async tasks demonstrate coordinating independent work; browser timing does not prove CPU-level parallel execution.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="water">
+      <div class="section-heading">
+        <div><p class="kicker">06 / WATER SAFETY MODULE</p><h2>Waterlogging monitor</h2></div>
+        <div class="button-row"><button class="button secondary" id="risingWater">Simulate rising water</button><button class="button outline" id="resetWater">Reset water levels</button></div>
+      </div>
+      <p class="section-note">Water-level values are simulated. Actual detection requires physical sensors or a verified external data source.</p>
+      <div class="settings-grid threshold-grid">
+        <div class="field-row"><label for="warningThreshold">Warning threshold (cm)</label><input id="warningThreshold" type="number" min="1" max="99" value="35"></div>
+        <div class="field-row"><label for="criticalThreshold">Critical threshold (cm)</label><input id="criticalThreshold" type="number" min="2" max="100" value="65"></div>
+        <button class="button outline threshold-action" id="saveThresholds">Apply thresholds</button>
+      </div>
+      <div class="road-grid water-grid" id="waterInputs"></div>
+      <div class="water-summary" id="waterSummary" role="status">No water alerts.</div>
+    </section>
+
+    <section class="section" id="emergency">
+      <div class="section-heading"><div><p class="kicker">07 / PRIORITY HANDLING</p><h2>Ambulance &amp; emergency center</h2></div></div>
+      <div class="control-grid">
+        <article class="card emergency-card">
+          <span class="emergency-label" id="emergencyLabel">NORMAL OPERATIONS</span>
+          <h3 id="emergencyTitle">No active emergency</h3>
+          <p id="emergencyReason">Simulate an ambulance to request safe priority for a selected road.</p>
+          <div class="field-row"><label for="ambulanceRoad">Ambulance approach</label><select id="ambulanceRoad"><option value="north">North</option><option value="south">South</option><option value="east">East</option><option value="west">West</option></select></div>
+          <div class="button-row"><button class="button danger" id="simulateAmbulance">Simulate ambulance</button><button class="button outline" id="endEmergency">End emergency</button></div>
+        </article>
+        <article class="card">
+          <h3>Event log</h3>
+          <div class="event-list" id="eventLog" aria-live="polite"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="safety">
+      <div class="section-heading"><div><p class="kicker">08 / ROUTE SAFETY &amp; ALERTS</p><h2>Safe route recommendations</h2></div><button class="button outline" id="clearAlerts">Clear resolved alerts</button></div>
+      <div class="control-grid">
+        <article class="card"><h3>Road safety</h3><div class="safety-list" id="safetyList"></div></article>
+        <article class="card"><h3>Early warnings <span class="tag" id="alertTag">0 active</span></h3><div class="event-list alerts-list" id="alertsList"></div></article>
+      </div>
+    </section>
+
+    <section class="section" id="capp">
+      <div class="section-heading"><div><p class="kicker">09 / COURSE INTEGRATION</p><h2>Five CAPP units, one system</h2></div></div>
+      <div class="architecture-flow" aria-label="Sensors to output architecture flow"><span>Simulated sensors</span><b>→</b><span>Data processing</span><b>→</b><span>Decision logic</span><b>→</b><span>Signal control</span><b>→</b><span>Dashboard output</span></div>
+      <div class="unit-grid">
+        <article class="card"><span class="unit-number">UNIT 01</span><h3>Introduction to CAPP</h3><p>Inputs are read, processed into decisions, and displayed as signal outputs, making the input-process-output flow visible.</p></article>
+        <article class="card"><span class="unit-number">UNIT 02</span><h3>ALU</h3><p>JavaScript functions add and subtract counts, compare road demand, calculate green duration, and evaluate logical alerts.</p></article>
+        <article class="card"><span class="unit-number">UNIT 03</span><h3>Control unit</h3><p>A single phase controller handles timers, manual/automatic operation, yellow clearance, all-red clearance, and safe phase selection.</p></article>
+        <article class="card"><span class="unit-number">UNIT 04</span><h3>Parallel architecture</h3><p>Independent asynchronous road-monitoring tasks are coordinated and compared with a sequential illustrative run. This is not proof of CPU parallelism.</p></article>
+        <article class="card"><span class="unit-number">UNIT 05</span><h3>Parallel system</h3><p>Traffic sensors, ALU, signal control, water monitoring, and emergency handling cooperate through shared simulation state.</p></article>
+      </div>
+    </section>
+
+    <section class="section project-info" id="project-info">
+      <div><p class="kicker">PROJECT INFORMATION</p><h2>Built for learning</h2><p>Static HTML, CSS, and vanilla JavaScript. No backend, database, paid API, or build step. Settings and optional event history remain in this browser’s localStorage.</p></div>
+      <div class="warning-note"><strong>Not for real traffic control</strong><p>Every count, signal, emergency, and water level is simulated for educational demonstration. Do not use this site to make real-world safety decisions.</p></div>
+    </section>
+  </main>
+  <footer><span>SMART TRAFFIC CONTROL / CAPP PROJECT</span><span>Educational simulation · No live sensor data</span></footer>
+</body>
+</html>
