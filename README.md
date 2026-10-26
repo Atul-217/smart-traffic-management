@@ -2,7 +2,9 @@
 
 A static educational project demonstrating a four-way traffic simulation and integration with the five CAPP units. It uses HTML5, CSS3, vanilla JavaScript, and browser `localStorage`; no backend, database, build step, or API is required.
 
-> **Safety notice:** all vehicle counts, water levels, signal decisions, and emergency events are simulated. This project is not a traffic control system and must not be used for real-world safety decisions. Water readings require actual physical sensors or a verified data source in a real deployment.
+> **Safety notice:** all vehicle queues, arrival rates, water levels, signal decisions, and emergency events are simulated. This project is not a traffic control system and must not be used for real-world safety decisions. Water readings require actual physical sensors or a verified data source in a real deployment.
+
+Traffic scenarios (balanced city flow, morning inbound peak, evening outbound peak, event release, and quiet night) demonstrate plausible demand patterns using editable simulated values. Vehicles arrive at each approach according to its selected scenario, and green phases serve vehicles from the active queue. These simplified scenarios are not live readings or validated traffic forecasts.
 
 ## Files
 
@@ -32,8 +34,8 @@ Then visit `http://localhost:8000`. Python is only an optional static-file serve
 ## Feature test checklist
 
 1. **Overview:** check that the vehicle total, active phase, timer, and alert count change as the simulation runs.
-2. **Density:** change each road slider and verify the count, density category, meter, dashboard total, and decision table update. Use **Generate random traffic**.
-3. **Signals:** test Start, Pause, Resume, and Reset. Observe the green → yellow → all-red → next green sequence. Confirm that only one approach can show green.
+2. **Density and scenarios:** load each named traffic scenario and verify all four approach queues and arrival rates update. While running, confirm arrivals increase queues, green phases serve vehicles, queue counters change, and the served count increments. Change individual queues and use **Generate random traffic** as well.
+3. **Signals and fairness:** test Start, Pause, Resume, and Reset. Observe the green → yellow → all-red → next green sequence. Confirm only one approach can show green, and that North, South, East, and West all get a turn under balanced or peak traffic rather than one busy road starving the others.
 4. **Automatic/manual:** select Manual and request a road. Set a water level above the critical threshold first and confirm a request for that unsafe road is denied.
 5. **Timing and ALU:** change minimum/maximum timings; test addition, subtraction, comparison, green-duration calculation, ambulance logic, and water-alert logic.
 6. **Parallel lab:** run the monitoring cycle and compare sequential and concurrent illustrative timings. The page explicitly notes that this does not prove CPU-level parallel execution.

@@ -5,8 +5,40 @@
   const ROADS = ["north", "south", "east", "west"];
   const LABELS = { north: "North", south: "South", east: "East", west: "West" };
   const DEFAULTS = {
-    roads: { north: { vehicles: 24, water: 8 }, south: { vehicles: 18, water: 12 }, east: { vehicles: 32, water: 17 }, west: { vehicles: 13, water: 10 } },
+    roads: { north: { vehicles: 18, water: 8 }, south: { vehicles: 14, water: 12 }, east: { vehicles: 20, water: 17 }, west: { vehicles: 12, water: 10 } },
     minGreen: 8, maxGreen: 28, warningThreshold: 35, criticalThreshold: 65
+  };
+  const SCENARIOS = {
+    balanced: {
+      description: "Steady arrivals from all four approaches with moderate queues.",
+      queues: { north: 18, south: 14, east: 20, west: 12 },
+      arrivals: { north: 10, south: 8, east: 11, west: 7 },
+      serviceRate: 1.1
+    },
+    "morning-peak": {
+      description: "North and South carry the inbound commute peak; East and West remain active at lighter demand.",
+      queues: { north: 54, south: 46, east: 19, west: 15 },
+      arrivals: { north: 24, south: 21, east: 8, west: 6 },
+      serviceRate: 1.05
+    },
+    "evening-peak": {
+      description: "East and West carry the outbound commute peak while both other approaches continue to receive traffic.",
+      queues: { north: 17, south: 20, east: 51, west: 58 },
+      arrivals: { north: 7, south: 8, east: 22, west: 25 },
+      serviceRate: 1.05
+    },
+    "event-release": {
+      description: "A simulated event release creates a short, heavy surge on East with ongoing traffic from all other sides.",
+      queues: { north: 24, south: 19, east: 78, west: 36 },
+      arrivals: { north: 9, south: 8, east: 30, west: 16 },
+      serviceRate: 1.2
+    },
+    "quiet-night": {
+      description: "Low overnight arrival rates let the controller serve actual queues and leave the junction all-red when roads are empty.",
+      queues: { north: 4, south: 2, east: 5, west: 3 },
+      arrivals: { north: 2, south: 1, east: 2, west: 1 },
+      serviceRate: 1.3
+    }
   };
   const state = {
     roads: structuredClone(DEFAULTS.roads),
@@ -14,7 +46,9 @@
     warningThreshold: DEFAULTS.warningThreshold, criticalThreshold: DEFAULTS.criticalThreshold,
     mode: "auto", running: true, phase: "allred", activeRoad: null, targetRoad: "north",
     seconds: 1, emergencyRoad: null, alerts: [], history: [], intervalId: null,
-    transitionToken: 0, lastAlertStatus: {}, handledWaterStatus: {}
+    transitionToken: 0, lastAlertStatus: {}, scenarioId: "balanced", arrivalRemainders: { north: 0, south: 0, east: 0, west: 0 },
+    waitingSeconds: { north: 0, south: 0, east: 0, west: 0 }, serviceRemainder: 0, vehiclesServed: 0,
+    greenElapsed: 0, scenarioServiceRate: 1.1
   };
   const $ = (id) => document.getElementById(id);
   const safeStorage = {
@@ -52,23 +86,31 @@
     return Math.round(state.minGreen + clamp(count, 0, 100) / 100 * span);
   }
   function chooseRoad(excludeCurrent = false) {
-    const candidates = ROADS.filter((road) => isSafe(road) && (!excludeCurrent || road !== state.activeRoad));
+    if (state.emergencyRoad && isSafe(state.emergencyRoad) &&
+      (!excludeCurrent || state.emergencyRoad !== state.activeRoad)) return state.emergencyRoad;
+    if (state.mode === "manual" && state.targetRoad && isSafe(state.targetRoad) &&
+      state.roads[state.targetRoad].vehicles > 0 && (!excludeCurrent || state.targetRoad !== state.activeRoad)) return state.targetRoad;
+    const candidates = ROADS.filter((road) =>
+      isSafe(road) && (!excludeCurrent || road !== state.activeRoad) && state.roads[road].vehicles > 0
+    );
     if (!candidates.length) return null;
-    if (state.emergencyRoad && candidates.includes(state.emergencyRoad)) return state.emergencyRoad;
-    if (state.mode === "manual" && candidates.includes(state.targetRoad)) return state.targetRoad;
-    return candidates.sort((a, b) => state.roads[b].vehicles - state.roads[a].vehicles)[0];
+    return candidates.sort((a, b) => {
+      const aPriority = state.roads[a].vehicles * 0.55 + Math.min(state.waitingSeconds[a], 120) * 1.2;
+      const bPriority = state.roads[b].vehicles * 0.55 + Math.min(state.waitingSeconds[b], 120) * 1.2;
+      return bPriority - aPriority;
+    })[0];
   }
   function reasonFor(road) {
     if (!road) return "No safe road is currently available; all signals remain red.";
     if (state.emergencyRoad === road) return `Ambulance request has priority on ${LABELS[road]}; the controller uses a safe transition.`;
     if (state.mode === "manual") return `Manual request for ${LABELS[road]} accepted because the road is not critically waterlogged.`;
-    return `${LABELS[road]} has the highest simulated vehicle count among safe approaches.`;
+    return `${LABELS[road]} has the highest simulated demand-and-wait priority (${state.roads[road].vehicles} queued, ${state.waitingSeconds[road]} seconds waiting).`;
   }
   function save() {
     safeStorage.write({
       roads: state.roads, minGreen: state.minGreen, maxGreen: state.maxGreen,
       warningThreshold: state.warningThreshold, criticalThreshold: state.criticalThreshold,
-      mode: state.mode, history: state.history.slice(0, 30)
+      mode: state.mode, scenarioId: state.scenarioId, history: state.history.slice(0, 30)
     });
   }
   function addEvent(kind, title, message, road = null) {
@@ -109,6 +151,7 @@
         </div>
         <div class="density-meter"><i id="density-meter-${road}"></i></div>
         <small id="road-status-${road}" class="section-note"></small>
+        <small id="road-arrivals-${road}" class="road-arrivals"></small>
       </article>`).join("");
     $("waterInputs").innerHTML = ROADS.map((road) => `
       <article class="road-card water-card">
@@ -137,6 +180,52 @@
       applyWaterStatus(); save(); renderAll();
     }));
   }
+  function loadScenario(scenarioId) {
+    if (!Object.hasOwn(SCENARIOS, scenarioId)) return;
+    const scenario = SCENARIOS[scenarioId];
+    state.scenarioId = scenarioId;
+    state.scenarioServiceRate = scenario.serviceRate;
+    state.vehiclesServed = 0;
+    state.serviceRemainder = 0;
+    for (const road of ROADS) {
+      state.roads[road].vehicles = scenario.queues[road];
+      state.arrivalRemainders[road] = 0;
+      state.waitingSeconds[road] = 0;
+      state.lastAlertStatus[road] = waterStatus(road);
+    }
+    $("trafficScenario").value = scenarioId;
+    $("scenarioDescription").textContent = scenario.description;
+    if (!state.activeRoad || state.phase === "allred") state.targetRoad = chooseRoad();
+    save();
+    renderAll();
+    addEvent("info", `Traffic scenario: ${scenarioId.replaceAll("-", " ")}`, scenario.description);
+  }
+  function simulateTrafficSecond() {
+    const scenario = SCENARIOS[state.scenarioId];
+    for (const road of ROADS) {
+      const roadState = state.roads[road];
+      state.arrivalRemainders[road] += scenario.arrivals[road] / 60;
+      const arrivals = Math.floor(state.arrivalRemainders[road]);
+      if (arrivals > 0) {
+        roadState.vehicles = Math.min(100, roadState.vehicles + arrivals);
+        state.arrivalRemainders[road] -= arrivals;
+      }
+      if (state.phase === "green" && state.activeRoad === road) {
+        state.waitingSeconds[road] = 0;
+        state.serviceRemainder += state.scenarioServiceRate;
+        const departures = Math.min(roadState.vehicles, Math.floor(state.serviceRemainder));
+        if (departures > 0) {
+          roadState.vehicles -= departures;
+          state.vehiclesServed += departures;
+          state.serviceRemainder -= departures;
+        }
+      } else if (roadState.vehicles > 0) {
+        state.waitingSeconds[road] = Math.min(state.waitingSeconds[road] + 1, 120);
+      } else {
+        state.waitingSeconds[road] = 0;
+      }
+    }
+  }
   function applyWaterStatus() {
     for (const road of ROADS) setAlert(road, waterStatus(road));
     if (state.activeRoad && !isSafe(state.activeRoad)) {
@@ -157,6 +246,8 @@
       $("vehicles-value-" + road).textContent = count;
       $("density-meter-" + road).style.width = `${count}%`;
       $("road-status-" + road).textContent = `${count} simulated vehicles · ${safetyFor(road).level}`;
+      $("road-arrivals-" + road).textContent = `${SCENARIOS[state.scenarioId].arrivals[road]} simulated arrivals/min`;
+      $("junction-" + road + "-count").textContent = `${count} queued`;
     }
   }
   function renderWater() {
@@ -205,6 +296,9 @@
       signal.querySelector(".yellow").classList.toggle("active", state.phase === "yellow" && road === state.activeRoad);
       signal.querySelector(".green").classList.toggle("active", state.phase === "green" && road === state.activeRoad && isSafe(road));
     });
+    document.querySelectorAll(".vehicle-train").forEach((train) => {
+      train.classList.toggle("moving", state.phase === "green" && train.dataset.train === state.activeRoad);
+    });
     $("decisionRoad").textContent = state.phase === "green" && state.activeRoad ? LABELS[state.activeRoad] : state.phase === "yellow" && state.activeRoad ? `${LABELS[state.activeRoad]} →` : "All red";
     $("phasePill").textContent = `${state.phase.toUpperCase()} PHASE`;
     $("phasePill").style.color = state.phase === "green" ? "var(--green)" : state.phase === "yellow" ? "var(--yellow)" : "var(--red)";
@@ -218,6 +312,7 @@
   function renderDashboard() {
     const total = ROADS.reduce((sum, road) => sum + state.roads[road].vehicles, 0);
     $("totalVehicles").textContent = total;
+    $("vehiclesServed").textContent = state.vehiclesServed;
     $("modeLabel").textContent = state.mode.toUpperCase();
     $("controlModeTag").textContent = state.mode === "auto" ? "Automatic scheduling" : "Manual road requests";
     $("congestionBefore").textContent = `${Math.round(total / 4)}%`;
@@ -250,6 +345,7 @@
       renderAll(); return;
     }
     state.activeRoad = road; state.targetRoad = road; state.phase = "green";
+    state.greenElapsed = 0;
     state.seconds = calculateGreenDuration(state.roads[road].vehicles);
     addEvent("info", `${LABELS[road]} green phase`, `Scheduled for ${state.seconds} seconds. ${reasonFor(road)}`, road);
     renderAll();
@@ -279,7 +375,15 @@
   }
   function tick() {
     if (!state.running) return;
-    if (state.seconds > 1) { state.seconds -= 1; renderSignals(); return; }
+    simulateTrafficSecond();
+    if (state.phase === "green" && state.greenElapsed >= state.minGreen &&
+      state.roads[state.activeRoad].vehicles === 0 && chooseRoad(true)) {
+      beginTransition(chooseRoad(true));
+      renderAll();
+      return;
+    }
+    if (state.phase === "green") state.greenElapsed += 1;
+    if (state.seconds > 1) { state.seconds -= 1; renderAll(); return; }
     if (state.phase === "green") {
       const next = chooseRoad(true);
       beginTransition(next);
@@ -290,6 +394,11 @@
       return;
     }
     const next = state.targetRoad && isSafe(state.targetRoad) ? state.targetRoad : chooseRoad();
+    if (!next) {
+      state.activeRoad = null; state.phase = "allred"; state.targetRoad = null; state.seconds = 1;
+      renderAll();
+      return;
+    }
     startGreen(next);
   }
   function startController() {
@@ -391,8 +500,10 @@
   }
   function bindEvents() {
     addInputListeners();
+    $("applyScenario").addEventListener("click", () => loadScenario($("trafficScenario").value));
     $("randomTraffic").addEventListener("click", () => {
       for (const road of ROADS) state.roads[road].vehicles = Math.floor(Math.random() * 101);
+      for (const road of ROADS) state.waitingSeconds[road] = 0;
       save(); renderAll();
     });
     $("modeSelect").addEventListener("change", (event) => setMode(event.target.value));
@@ -452,6 +563,7 @@
     if (Number.isFinite(saved.criticalThreshold)) state.criticalThreshold = clamp(saved.criticalThreshold, 2, 100);
     if (state.warningThreshold >= state.criticalThreshold) { state.warningThreshold = DEFAULTS.warningThreshold; state.criticalThreshold = DEFAULTS.criticalThreshold; }
     if (saved.mode === "manual" || saved.mode === "auto") state.mode = saved.mode;
+    if (Object.hasOwn(SCENARIOS, saved.scenarioId)) state.scenarioId = saved.scenarioId;
     if (Array.isArray(saved.history)) state.history = saved.history.slice(0, 30);
   }
   function init() {
@@ -460,6 +572,9 @@
     $("minGreen").value = state.minGreen; $("maxGreen").value = state.maxGreen;
     $("warningThreshold").value = state.warningThreshold; $("criticalThreshold").value = state.criticalThreshold;
     $("modeSelect").value = state.mode;
+    $("trafficScenario").value = state.scenarioId;
+    $("scenarioDescription").textContent = SCENARIOS[state.scenarioId].description;
+    state.scenarioServiceRate = SCENARIOS[state.scenarioId].serviceRate;
     bindEvents();
     applyWaterStatus();
     renderAll(); renderHistory(); save();

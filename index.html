@@ -40,7 +40,8 @@
     </section>
 
     <section class="stats-grid" aria-label="Dashboard summary">
-      <article class="stat-card"><span>SIMULATED VEHICLES</span><strong id="totalVehicles">0</strong><small>across four approaches</small></article>
+      <article class="stat-card"><span>VEHICLES WAITING</span><strong id="totalVehicles">0</strong><small>simulated queue across four approaches</small></article>
+      <article class="stat-card"><span>VEHICLES SERVED</span><strong id="vehiclesServed">0</strong><small>during this page session</small></article>
       <article class="stat-card"><span>ACTIVE GREEN</span><strong id="activeRoad">—</strong><small id="signalStatus">Starting</small></article>
       <article class="stat-card"><span>PHASE TIMER</span><strong id="countdown">—</strong><small>seconds remaining</small></article>
       <article class="stat-card"><span>ACTIVE ALERTS</span><strong id="alertCount">0</strong><small id="safeCount">4 roads safe</small></article>
@@ -58,10 +59,14 @@
             <div class="lane-mark mark-n"></div><div class="lane-mark mark-s"></div>
             <div class="lane-mark mark-e"></div><div class="lane-mark mark-w"></div>
             <div class="junction-center"><span>SMART<br>JUNCTION</span></div>
-            <div class="signal signal-north" data-signal="north"><b>N</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
-            <div class="signal signal-south" data-signal="south"><b>S</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
-            <div class="signal signal-east" data-signal="east"><b>E</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
-            <div class="signal signal-west" data-signal="west"><b>W</b><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-north" data-signal="north"><b>N</b><small class="approach-queue" id="junction-north-count">0 queued</small><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-south" data-signal="south"><b>S</b><small class="approach-queue" id="junction-south-count">0 queued</small><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-east" data-signal="east"><b>E</b><small class="approach-queue" id="junction-east-count">0 queued</small><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="signal signal-west" data-signal="west"><b>W</b><small class="approach-queue" id="junction-west-count">0 queued</small><span class="lamp red"></span><span class="lamp yellow"></span><span class="lamp green"></span></div>
+            <div class="vehicle-train train-north" data-train="north" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="vehicle-train train-south" data-train="south" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="vehicle-train train-east" data-train="east" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="vehicle-train train-west" data-train="west" aria-hidden="true"><i></i><i></i><i></i></div>
           </div>
         </div>
         <aside class="junction-info">
@@ -80,7 +85,18 @@
         <div><p class="kicker">02 / INPUT SENSORS</p><h2>Traffic density monitor</h2></div>
         <button class="button secondary" id="randomTraffic">Generate random traffic</button>
       </div>
-      <p class="section-note">Move a slider or enter a count from 0–100. These are generated inputs, not real sensor data.</p>
+      <p class="section-note">These are simulated vehicle queues, not real sensor readings. During a running scenario, vehicles arrive on every road and the green approach serves vehicles from its queue.</p>
+      <div class="scenario-bar card">
+        <div class="field-row"><label for="trafficScenario">Traffic scenario</label><select id="trafficScenario">
+          <option value="balanced">Balanced city flow</option>
+          <option value="morning-peak">Morning inbound peak</option>
+          <option value="evening-peak">Evening outbound peak</option>
+          <option value="event-release">Stadium / event release</option>
+          <option value="quiet-night">Quiet night traffic</option>
+        </select></div>
+        <button class="button primary" id="applyScenario">Load scenario</button>
+        <p id="scenarioDescription" class="section-note">Steady arrivals from all four approaches with moderate queues.</p>
+      </div>
       <div class="road-grid" id="roadInputs"></div>
     </section>
 
